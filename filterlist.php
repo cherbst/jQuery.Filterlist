@@ -9,8 +9,8 @@
 <script type='text/javascript'><!--
 
 jQuery(document).ready(function(){
-//	jQuery.filterlist();
-	jQuery('#content').filterlist(jQuery('#content > div:first'));
+	jQuery.filterlist();
+//	jQuery('#content').filterlist(jQuery('#content > div:first'));
 	jQuery('li > a').click(function(){
 		jQuery('#content > div').filterlist('filter',{
 			'filter' : jQuery(this).attr('href')
