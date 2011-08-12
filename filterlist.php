@@ -12,39 +12,55 @@ jQuery(document).ready(function(){
 	jQuery.filterlist();
 //	jQuery('#content').filterlist(jQuery('#content > div:first'));
 	jQuery('li > a').click(function(){
-		jQuery('#content > div').filterlist('filter',{
-			'filter' : jQuery(this).attr('href')
-		});
+		options = {'filter' : jQuery(this).attr('href')	};
+		jQuery('#vertical > div').filterlist('filter',options);
+		options.horizontal = true;
+		jQuery('#horizontal > div').filterlist('filter',options);
 		return false;
 	});
 });
 
 // --></script>
 
+<?php
+function print_elements($style = 'height'){
+	for ( $i=0;$i<30;$i++){
+
+		$class1 = rand(1,5);
+		do {
+			$class2 = rand(1,5);
+		}while( $class2 == $class1 );
+		$num = rand(20,100);
+		echo '<div class="cat'.$class1.' cat'.$class2.'" style="'.$style.':'.$num.'px;">';
+		echo 'Element with category '.$class1.' and '.$class2.'</div>';
+
+	}
+}
+?>
 </head>
 
 <body>
 <div id="header">
-<h1> Filter list demo </h1>
-</div>
+	<h1> Filter list demo </h1>
+</div> <!-- #header -->
+
 <div id="container">
-<div id="content">
-<?php
+	<div id="content">
+		<div id="vertical-demo">
+			<h2> Vertical filter list</h1>
+			<div id="vertical">
+				<?php print_elements(); ?>
+			</div><!-- #vertical -->
+		</div><!-- #vertical-demo -->
+		<div id="horizontal-demo">
+			<h2> Horizontal filter list</h1>
+			<div id="horizontal">
+				<?php print_elements('width'); ?>
+			</div><!-- #horizontal -->
+		</div><!-- #horizontal-demo -->
+	</div><!-- #content -->
+</div><!-- #container -->
 
-for ( $i=0;$i<20;$i++){
-
-	$class1 = rand(1,5);
-	do {
-		$class2 = rand(1,5);
-	}while( $class2 == $class1 );
-	$height = rand(20,100);
-	echo '<div class="cat'.$class1.' cat'.$class2.'" style="height:'.$height.'px;">';
-	echo 'Element with category '.$class1.' and '.$class2.'</div>';
-
-}
-
-?>
-</div>
 <div id="sidebar">
 	<ul>
 		<li><a title="All" href="*">Show all</a></li>
@@ -53,7 +69,6 @@ for ( $i=1;$i<=5;$i++ )
 	echo '<li><a title="Category '.$i.'" href=".cat'.$i.'">Category '.$i.'</a></li>';
 ?>
 	</ul>
-</div>
-</div>
+</div><!-- #sidebar -->
 
 </body>

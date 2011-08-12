@@ -7,26 +7,63 @@ div {position:absolute}
 	top : 0;
 	left: 0;
 	right: 0;
-	height: 100px;
+	height: 70px;
 }
 
 #container {
-	top: 100px;
+	top: 70px;
 	left: 0;
-	right: 0;
-	bottom: 0;
+	right: 120px;
+	bottom: 50px;
 }
 
 #content {
 	top: 0;
 	bottom: 0;
 	left: 0;
-	width: 90%;
+	right: 0;
+	overflow-y: visible;
+}
+
+#vertical-demo {
+	max-height: 600px;
+	height: 70%;
+}
+
+#horizontal-demo {
+	max-height: 200px;
+	height: 30%;
+}
+
+#horizontal, #vertical {
+	top: 30px;
+	bottom: 0;
+	left:0;
+	right: 0;
+}
+
+#horizontal {
+	overflow-x: auto;
+	white-space: nowrap;
+}
+
+#vertical{
 	overflow-y: auto;
 }
 
-#content div{
+#vertical-demo,#horizontal-demo {
+	position: relative;
+}
+
+#vertical div, #horizontal div {
 	position: static;
+}
+
+#horizontal div {
+	height: 100%;
+	display: inline-block;
+	white-space: normal;
+	vertical-align: bottom;
 }
 
 .cat1 {
@@ -50,8 +87,8 @@ div {position:absolute}
 }
 
 #sidebar{
-	top: 0;
+	top: 100px;
 	bottom: 0;
-	right: 0;
-	width 10%;
+	right: 10px;
+	width : 100px;
 }
