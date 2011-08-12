@@ -11,18 +11,9 @@
 
 (function( $ ){
 
-	var filterOptions = {
-		'duration' : 1000,
-		beforeShow : function(){},
-		afterShow : function(){},
-		getNewCurElement : function(filter,oldCur,shown){ 
-			return (shown.index(oldCur)==-1?shown.first():oldCur); 
-		}
-	};
-
 	var container;
 	var curElement;
-	var topmargin;
+	var margin;
 	var stickToCurrentElement = false;
 
 	var methods = {
@@ -30,31 +21,43 @@
 			container = this;
 			curElement = cur;
 			if ( !$.isFunction(this) ){
-				topmargin = container.offset().top;
+				margin = container.offset().top;
 				stickToCurrentElement = true;
 			}
 			return this;
 		},
 		filter : function(options){
+			var filterOptions = {
+				'duration' : 1000,
+				horizontal : false,
+				beforeShow : function(){},
+				afterShow : function(){},
+				getNewCurElement : function(filter,oldCur,shown){ 
+					return (shown.index(oldCur)==-1?shown.first():oldCur); 
+				}
+			};
+
 	 		if ( options )
         			$.extend( filterOptions, options );
 			return filterElements.apply(this,[filterOptions]);
 		}
 	};
 
-	function getHeightCorrection(toShow){
+	function getExtentCorrection(toShow,horizontal){
 		if ( curElement.length == 0)
 			return 0;
 		
 		if ( toShow.index(curElement) == -1 )
-			return curElement.offset().top - topmargin;
+			return (horizontal?curElement.offset().left:curElement.offset().top) - margin;
 
 		var upper = curElement.prevAll(':visible').first();
 
 		if ( upper.length > 0 )
-			return upper.offset().top + upper.height() - topmargin;
+			return (horizontal?upper.offset().left:upper.offset().top) + 
+				(horizontal?upper.width():upper.height()) - margin;
 
-		return curElement.closest(':visible').offset().top - topmargin;
+		var closest = curElement.closest(':visible');
+		return (horizontal?closest.offset().left:closest.offset().top) - margin;
 	}
 
 	function findElement(element,allElements,toShow,hidden,prev){
@@ -110,21 +113,21 @@
 		return upper_id+'_'+lower_id;
 	}
 
-	// gets the height of the element from its data field if possible
-	// this is done because getting the height of a hidden element
+	// gets the extent of the element from its data field if possible
+	// this is done because getting the extent of a hidden element
 	// takes a long time
-	function getElementHeight(element){
-		var dataHeight = element.data('height');
-		var height = (dataHeight?parseInt(dataHeight,10):element.height());
-		if ( !dataHeight ) element.data('height',height);
-		return height;
+	function getElementExtent(element,horizontal){
+		var dataExtent = element.data('extent');
+		var extent = (dataExtent?parseInt(dataExtent,10):(horizontal?element.width():element.height()));
+		if ( !dataExtent ) element.data('extent',extent);
+		return extent;
 	}
 
-	function computeNewHeights(allElements,toHide,toShow,hidden,shown){
+	function computeNewExtents(allElements,toHide,toShow,hidden,shown,horizontal){
 		var groups = {};
 		// compute show/hide groups
 
-		var refHeight = 0;
+		var refExtent = 0;
 		var curIndex = allElements.index(curElement);
 		var group_id;
 		var oldElement;
@@ -142,53 +145,56 @@
 				group = {
 					toHide : [],
 					toShow : [],
-					hideHeight: 0,
-					showHeight : 0
+					hideExtent: 0,
+					showExtent : 0
 				};
 				groups[group_id] = group;
 			}
 
-			var height = getElementHeight($(this));
+			var extent = getElementExtent($(this),horizontal);
 			if ( toShow.index($(this)) != -1 ){
 				if ( stickToCurrentElement && curElement.length > 0 && allElements.index($(this)) < curIndex )
-					refHeight += height;
+					refExtent += extent;
 				group.toShow.push($(this));
-				group.showHeight += height;
+				group.showExtent += extent;
 			}else{
 				if ( stickToCurrentElement && curElement.length > 0 && allElements.index($(this)) < curIndex )
-					refHeight -= height;
-				$(this).data('newheight',height);
+					refExtent -= extent;
+				$(this).data('newextent',extent);
 				group.toHide.push($(this));
-				group.hideHeight += height;
+				group.hideExtent += extent;
 			}
 			oldElement = $(this);
 		});
 
 		if ( stickToCurrentElement ){
-			refHeight += getHeightCorrection(toShow);	
-			container.data('refHeight',refHeight);
+			refExtent += getExtentCorrection(toShow,horizontal);
+			container.data('refExtent',refExtent);
 		}
 
 		for(key in groups) {
 			console.log('Group:'+key);
 			var group = groups[key];
-			var diff = group.hideHeight - group.showHeight;
-			if ( group.showHeight > group.hideHeight ){
+			var diff = group.hideExtent - group.showExtent;
+			if ( group.showExtent > group.hideExtent ){
 				for (var i = 0,j = group.toShow.length; i < j; i++) {
 					var element = group.toShow[i];
-					var height = getElementHeight(element);
-					element.data('height',height);
-					var newHeight = Math.round(Math.abs(
-						height + (height / group.showHeight)*diff));
-					element.height(newHeight);
+					var extent = getElementExtent(element,horizontal);
+					element.data('extent',extent);
+					var newExtent = Math.round(Math.abs(
+						extent + (extent / group.showExtent)*diff));
+					if ( horizontal )
+						element.width(newExtent);
+					else
+						element.height(newExtent);
 				}
 			}else{
 				for (var i = 0,j = group.toHide.length; i < j; i++) {
 					var element = group.toHide[i];
-					var height = getElementHeight(element);
-					var newHeight = Math.round(Math.abs(
-						height - (height / group.hideHeight)*diff));
-					element.data('newheight',newHeight);
+					var extent = getElementExtent(element,horizontal);
+					var newExtent = Math.round(Math.abs(
+						extent - (extent / group.hideExtent)*diff));
+					element.data('newextent',newExtent);
 				}
 			}
 		}
@@ -209,16 +215,21 @@
 
 		if ( elementsToShow ){
 			curElement = options.getNewCurElement(options.filter,curElement,shown);
-			computeNewHeights(allElements,toHide,toShow,hidden,shown);
+			computeNewExtents(allElements,toHide,toShow,hidden,shown,options.horizontal);
 
 			toHide.each(function(){
-				$(this).animate({opacity: 0, height: parseInt($(this).data('newheight'),10)},
-					options.duration);
+				obj = {opacity: 0 };
+				ext = parseInt($(this).data('newextent'),10);
+				if ( options.horizontal )
+					obj.width = ext;
+				else
+					obj.height = ext;
+				$(this).animate(obj,options.duration);
 			});
 			if ( stickToCurrentElement ){
-				var refHeight = parseInt(container.data('refHeight'),10);
-				if ( refHeight < 0 )
-					container.animate({top: "-="+ refHeight},options.duration);
+				var refExtent = parseInt(container.data('refExtent'),10);
+				if ( refExtent < 0 )
+					container.animate({top: "-="+ refExtent},options.duration);
 			}
 		}else
 			toHide.fadeOut(options.duration);
@@ -227,7 +238,7 @@
 
 			toHide.hide();
 			toHide.each(function(){
-				$(this).css('height',getElementHeight($(this)));
+				$(this).css((options.horizontal?'width':'height'),getElementExtent($(this),options.horizontal));
 			});
 
 			options.beforeShow(elementsToShow);
@@ -237,17 +248,21 @@
 			toShow.show();
 
 			toShow.each(function(){
-				$(this).animate({opacity: 1,height: getElementHeight($(this))},
-					options.duration,function(){
+				obj = {opacity: 1 };
+				if ( options.horizontal )
+					obj.width = getElementExtent($(this),options.horizontal);
+				else
+					obj.height = getElementExtent($(this),options.horizontal);
+				$(this).animate(obj,options.duration,function(){
 					if ( this.style && this.style.removeAttribute)
 						this.style.removeAttribute("filter");
 				});
 			});
 
 			if ( stickToCurrentElement ){
-				var refHeight = parseInt(container.data('refHeight'),10);
-				if ( refHeight > 0 )
-					container.animate({top: "-="+ refHeight},options.duration);
+				var refExtent = parseInt(container.data('refExtent'),10);
+				if ( refExtent > 0 )
+					container.animate({top: "-="+ refExtent},options.duration);
 			}
 
 			toShow.promise().done(options.afterShow);
