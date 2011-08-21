@@ -86,6 +86,16 @@ div {position:absolute}
 	background: #A68900;
 }
 
+.current {
+	border: 2px solid red;
+}
+
+.title {
+	z-index : 100;
+	background: white;
+	width: 100%;
+}
+
 #sidebar{
 	top: 100px;
 	bottom: 0;

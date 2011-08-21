@@ -11,25 +11,15 @@
 
 (function( $ ){
 
-	var container;
-	var curElement;
-	var margin;
-	var stickToCurrentElement = false;
 
 	var methods = {
-		init : function( cur ) { 
-			container = this;
-			curElement = cur;
-			if ( !$.isFunction(this) ){
-				margin = container.offset().top;
-				stickToCurrentElement = true;
-			}
-			return this;
-		},
 		filter : function(options){
-			var filterOptions = {
+			var settings = {
 				'duration' : 1000,
 				horizontal : false,
+				container : null,
+				stickToCurrentElement : false,
+				curElement : null,
 				beforeShow : function(){},
 				afterShow : function(){},
 				getNewCurElement : function(filter,oldCur,shown){ 
@@ -38,26 +28,40 @@
 			};
 
 	 		if ( options )
-        			$.extend( filterOptions, options );
-			return filterElements.apply(this,[filterOptions]);
+        			$.extend( settings, options );
+			if ( settings.container ){
+				if ( !settings.curElement ){
+					settings.curElement = settings.container.data('curElement');
+					if ( !settings.curElement )
+						settings.curElement = this.first(':visible');
+				}
+				settings.stickToCurrentElement = true;
+				settings.margin = ( settings.horizontal?settings.curElement.offset().left:
+							settings.curElement.offset().top);
+			}
+			settings.curElement = filterElements.apply(this,[settings]);
+			if ( settings.container )
+				settings.container.data('curElement',settings.curElement);
+
+			return settings.curElement;
 		}
 	};
 
-	function getExtentCorrection(toShow,horizontal){
-		if ( curElement.length == 0)
+	function getExtentCorrection(toShow,options){
+		if ( options.curElement.length == 0)
 			return 0;
 		
-		if ( toShow.index(curElement) == -1 )
-			return (horizontal?curElement.offset().left:curElement.offset().top) - margin;
+		if ( toShow.index(options.curElement) == -1 )
+			return (options.horizontal?options.curElement.offset().left:options.curElement.offset().top) - options.margin;
 
-		var upper = curElement.prevAll(':visible').first();
+		var upper = options.curElement.prevAll(':visible').first();
 
 		if ( upper.length > 0 )
-			return (horizontal?upper.offset().left:upper.offset().top) + 
-				(horizontal?upper.width():upper.height()) - margin;
+			return (options.horizontal?upper.offset().left:upper.offset().top) + 
+				(options.horizontal?upper.width():upper.height()) - options.margin;
 
-		var closest = curElement.closest(':visible');
-		return (horizontal?closest.offset().left:closest.offset().top) - margin;
+		var closest = options.curElement.closest(':visible');
+		return (options.horizontal?closest.offset().left:closest.offset().top) - options.margin;
 	}
 
 	function findElement(element,allElements,toShow,hidden,prev){
@@ -123,12 +127,12 @@
 		return extent;
 	}
 
-	function computeNewExtents(allElements,toHide,toShow,hidden,shown,horizontal){
+	function computeNewExtents(allElements,toHide,toShow,hidden,shown,options){
 		var groups = {};
 		// compute show/hide groups
 
 		var refExtent = 0;
-		var curIndex = allElements.index(curElement);
+		var curIndex = allElements.index(options.curElement);
 		var group_id;
 		var oldElement;
 
@@ -151,14 +155,16 @@
 				groups[group_id] = group;
 			}
 
-			var extent = getElementExtent($(this),horizontal);
+			var extent = getElementExtent($(this),options.horizontal);
 			if ( toShow.index($(this)) != -1 ){
-				if ( stickToCurrentElement && curElement.length > 0 && allElements.index($(this)) < curIndex )
+				if ( options.stickToCurrentElement && 
+					options.curElement.length > 0 && allElements.index($(this)) < curIndex )
 					refExtent += extent;
 				group.toShow.push($(this));
 				group.showExtent += extent;
 			}else{
-				if ( stickToCurrentElement && curElement.length > 0 && allElements.index($(this)) < curIndex )
+				if ( options.stickToCurrentElement && 
+					options.curElement.length > 0 && allElements.index($(this)) < curIndex )
 					refExtent -= extent;
 				$(this).data('newextent',extent);
 				group.toHide.push($(this));
@@ -167,9 +173,9 @@
 			oldElement = $(this);
 		});
 
-		if ( stickToCurrentElement ){
-			refExtent += getExtentCorrection(toShow,horizontal);
-			container.data('refExtent',refExtent);
+		if ( options.stickToCurrentElement ){
+			refExtent += getExtentCorrection(toShow,options);
+			options.container.data('refExtent',refExtent);
 		}
 
 		for(key in groups) {
@@ -179,11 +185,11 @@
 			if ( group.showExtent > group.hideExtent ){
 				for (var i = 0,j = group.toShow.length; i < j; i++) {
 					var element = group.toShow[i];
-					var extent = getElementExtent(element,horizontal);
+					var extent = getElementExtent(element,options.horizontal);
 					element.data('extent',extent);
 					var newExtent = Math.round(Math.abs(
 						extent + (extent / group.showExtent)*diff));
-					if ( horizontal )
+					if ( options.horizontal )
 						element.width(newExtent);
 					else
 						element.height(newExtent);
@@ -191,7 +197,7 @@
 			}else{
 				for (var i = 0,j = group.toHide.length; i < j; i++) {
 					var element = group.toHide[i];
-					var extent = getElementExtent(element,horizontal);
+					var extent = getElementExtent(element,options.horizontal);
 					var newExtent = Math.round(Math.abs(
 						extent - (extent / group.hideExtent)*diff));
 					element.data('newextent',newExtent);
@@ -214,8 +220,8 @@
 		var elementsToShow = ( allElements.length != hidden.length );
 
 		if ( elementsToShow ){
-			curElement = options.getNewCurElement(options.filter,curElement,shown);
-			computeNewExtents(allElements,toHide,toShow,hidden,shown,options.horizontal);
+			options.curElement = options.getNewCurElement(options.filter,options.curElement,shown);
+			computeNewExtents(allElements,toHide,toShow,hidden,shown,options);
 
 			toHide.each(function(){
 				obj = {opacity: 0 };
@@ -226,10 +232,14 @@
 					obj.height = ext;
 				$(this).animate(obj,options.duration);
 			});
-			if ( stickToCurrentElement ){
-				var refExtent = parseInt(container.data('refExtent'),10);
-				if ( refExtent < 0 )
-					container.animate({top: "-="+ refExtent},options.duration);
+			if ( options.stickToCurrentElement ){
+				var refExtent = parseInt(options.container.data('refExtent'),10);
+				if ( refExtent < 0 ){
+					if ( options.horizontal )
+						options.container.animate({left: "-="+ refExtent},options.duration);
+					else
+						options.container.animate({top: "-="+ refExtent},options.duration);
+				}
 			}
 		}else
 			toHide.fadeOut(options.duration);
@@ -259,25 +269,29 @@
 				});
 			});
 
-			if ( stickToCurrentElement ){
-				var refExtent = parseInt(container.data('refExtent'),10);
-				if ( refExtent > 0 )
-					container.animate({top: "-="+ refExtent},options.duration);
+			if ( options.stickToCurrentElement ){
+				var refExtent = parseInt(options.container.data('refExtent'),10);
+				if ( refExtent > 0 ){
+					if ( options.horizontal )
+						options.container.animate({left: "-="+ refExtent},options.duration);
+					else
+						options.container.animate({top: "-="+ refExtent},options.duration);
+				}
 			}
 
 			toShow.promise().done(options.afterShow);
 		});
 
-		return curElement;
+		return options.curElement;
 	};
 
-	$.filterlist = $.fn.filterlist = function( method ) {
+	$.fn.filterlist = function( method ) {
     
 		// Method calling logic
 		if ( methods[method] ) {
 			return methods[ method ].apply( this, Array.prototype.slice.call( arguments, 1 ));
 		} else if ( typeof method === 'object' || ! method ) {
-			return methods.init.apply( this, arguments );
+			return methods.filter.apply( this, arguments );
 		} else {
 			$.error( 'Method ' +  method + ' does not exist on jQuery.filterlist' );
 		}
